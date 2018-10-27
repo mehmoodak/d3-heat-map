@@ -5,7 +5,7 @@ var svgAttributes = {
   height: 600,
   selector: '#graph',
   margins: {
-    top: 70,
+    top: 120,
     left: 50,
     right: 30,
     bottom: 50,
@@ -35,13 +35,13 @@ addEventListener('DOMContentLoaded', function(e) {
       for (var i = svgData.minYear; i <= svgData.maxYear; i++) {
         svgData.years.push(i);
       }
-
       svgData.barWidth = svgAttributes.width / svgData.years.length;
 
       createGraph();
     })
     .catch(function(e) {
       alert('There is no data to show.');
+      console.log(e);
     })
     .then(function(e) {
       log();
@@ -61,8 +61,27 @@ function createGraph() {
     svg = d3
       .select(svgAttributes.selector)
       .append('svg')
-      .attr('width', svgAttributes.width)
-      .attr('height', svgAttributes.height);
+      .attr('width', svgAttributes.width + svgAttributes.margins.left + svgAttributes.margins.right)
+      .attr(
+        'height',
+        svgAttributes.height + svgAttributes.margins.top + svgAttributes.margins.bottom,
+      );
+  }
+
+  function scaleX(value) {
+    var scale = d3
+      .scaleLinear()
+      .domain([svgData.minYear, svgData.maxYear + 1]) // +1 is for adjustment
+      .range([svgAttributes.margins.left, svgAttributes.width + svgAttributes.margins.left]);
+    return scale(value);
+  }
+
+  function scaleY(value) {
+    var scale = d3
+      .scaleLinear()
+      .domain([1, 12 + 1]) // +1 is for adjustment
+      .range([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
+    return scale(value);
   }
 
   function populateChart() {
@@ -77,12 +96,8 @@ function createGraph() {
       .attr('data-month', d => d.month)
       .attr('data-year', d => d.year)
       .attr('data-temp', d => d.variance)
-      .attr('x', function(d, i) {
-        return (d.year - svgData.minYear) * svgData.barWidth;
-      })
-      .attr('y', function(d, i) {
-        return (d.month - 1) * svgData.barHeight;
-      });
+      .attr('x', d => scaleX(d.year))
+      .attr('y', d => scaleY(d.month));
   }
 
   makeChart();
