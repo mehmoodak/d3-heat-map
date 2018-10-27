@@ -5,5 +5,11 @@ body {
 }
 
 .cell {
-  fill: white;
+  fill: brown;
+}
+
+#x-axis,
+#y-axis {
+  font-size: 14px;
+  color: white;
 }
