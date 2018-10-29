@@ -15,17 +15,17 @@ var svgAttributes = {
 };
 
 var colors = [
-  '#313695',
-  '#4575B4',
-  '#74ADD1',
-  '#ABD9E9',
-  '#E0F3F8',
-  '#FFFFBF',
-  '#FEE090',
-  '#FDAE61',
-  '#F46D43',
-  '#D73027',
-  '#A50026',
+  { temp: 0, color: '#313695' },
+  { temp: 2.8, color: '#4575B4' },
+  { temp: 3.9, color: '#74ADD1' },
+  { temp: 5.0, color: '#ABD9E9' },
+  { temp: 6.1, color: '#E0F3F8' },
+  { temp: 7.2, color: '#FFFFBF' },
+  { temp: 8.3, color: '#FEE090' },
+  { temp: 9.5, color: '#FDAE61' },
+  { temp: 10.6, color: '#F46D43' },
+  { temp: 11.7, color: '#D73027' },
+  { temp: 12.8, color: '#A50026' },
 ];
 
 var svgData = {
@@ -75,28 +75,14 @@ function getData(url) {
 }
 
 function getColor(baseTemp) {
-  if (baseTemp < 2.8) {
-    return colors[0];
-  } else if (baseTemp <= 3.9) {
-    return colors[1];
-  } else if (baseTemp <= 5.0) {
-    return colors[2];
-  } else if (baseTemp <= 6.1) {
-    return colors[3];
-  } else if (baseTemp <= 7.2) {
-    return colors[4];
-  } else if (baseTemp <= 8.3) {
-    return colors[5];
-  } else if (baseTemp <= 9.5) {
-    return colors[6];
-  } else if (baseTemp <= 10.6) {
-    return colors[7];
-  } else if (baseTemp <= 11.7) {
-    return colors[8];
-  } else if (baseTemp <= 12.8) {
-    return colors[9];
-  } else if (baseTemp > 12.8) {
-    return colors[10];
+  for (var i = 0; i < colors.length; i++) {
+    if (i === colors.length - 1) {
+      return colors[colors.length - 1].color;
+    }
+
+    if (colors[i].temp < baseTemp && colors[i + 1].temp >= baseTemp) {
+      return colors[i].color;
+    }
   }
 }
 
@@ -146,13 +132,11 @@ function createGraph() {
       )
       .call(xAxis);
 
-    var yAxis = d3
-      .axisLeft(yScale)
-      .tickFormat(function (month) {
-        var date = new Date(0);
-        date.setUTCMonth(month);
-        return d3.timeFormat('%B')(date);
-      });
+    var yAxis = d3.axisLeft(yScale).tickFormat(function(month) {
+      var date = new Date(0);
+      date.setUTCMonth(month);
+      return d3.timeFormat('%B')(date);
+    });
 
     svg
       .append('g')
