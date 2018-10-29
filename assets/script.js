@@ -118,16 +118,16 @@ function createGraph() {
   function scaleX(value) {
     xScale = d3
       .scaleLinear()
-      .domain([svgData.minYear, svgData.maxYear + 1]) // +1 is for adjustment
+      .domain([svgData.minYear, svgData.maxYear])
       .range([svgAttributes.margins.left, svgAttributes.width + svgAttributes.margins.left]);
     return xScale(value);
   }
 
   function scaleY(value) {
     yScale = d3
-      .scaleLinear()
-      .domain([0, 11]) // +1 is for adjustment
-      .range([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
+      .scaleBand()
+      .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+      .rangeRound([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
     return yScale(value);
   }
 
@@ -142,25 +142,22 @@ function createGraph() {
       .attr('id', 'x-axis')
       .style(
         'transform',
-        'translate(0,' +
-          (svgAttributes.margins.top + svgAttributes.height + svgData.barHeight) +
-          'px)',
+        'translate(0,' + (svgAttributes.margins.top + svgAttributes.height) + 'px)',
       )
       .call(xAxis);
 
-    var yAxis = d3.axisLeft(yScale).tickFormat(function(month) {
-      var date = new Date(0);
-      date.setUTCMonth(month);
-      return d3.timeFormat('%B')(date);
-    });
+    var yAxis = d3
+      .axisLeft(yScale)
+      .tickFormat(function (month) {
+        var date = new Date(0);
+        date.setUTCMonth(month);
+        return d3.timeFormat('%B')(date);
+      });
 
     svg
       .append('g')
       .attr('id', 'y-axis')
-      .style(
-        'transform',
-        'translate(' + svgAttributes.margins.left + 'px, ' + svgData.barHeight / 2 + 'px)',
-      )
+      .style('transform', 'translate(' + svgAttributes.margins.left + 'px, 0px)')
       .call(yAxis);
   }
 
@@ -205,14 +202,21 @@ function createGraph() {
       .style('fill', 'white')
       .style('font-size', '16px')
       .style('transform', 'translate(65px, 370px) rotate(-90deg)');
-    
+
     // Show y-axis text
     svg
       .append('text')
       .text('Years')
       .style('fill', 'white')
       .style('font-size', '16px')
-      .style('transform', 'translate(' + ( svgAttributes.margins.left + svgAttributes.width / 2 - 50 )+ 'px, ' + (svgAttributes.margins.top + svgAttributes.height + 80 ) + 'px)');
+      .style(
+        'transform',
+        'translate(' +
+          (svgAttributes.margins.left + svgAttributes.width / 2 - 50) +
+          'px, ' +
+          (svgAttributes.margins.top + svgAttributes.height + 50) +
+          'px)',
+      );
   }
 
   makeChart();
