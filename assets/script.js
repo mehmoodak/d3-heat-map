@@ -15,17 +15,17 @@ var svgAttributes = {
 };
 
 var colors = [
-  '#313695',
-  '#4575B4',
-  '#74ADD1',
-  '#ABD9E9',
-  '#E0F3F8',
-  '#FFFFBF',
-  '#FEE090',
-  '#FDAE61',
-  '#F46D43',
-  '#D73027',
-  '#A50026',
+  { temp: 0, color: '#313695' },
+  { temp: 2.8, color: '#4575B4' },
+  { temp: 3.9, color: '#74ADD1' },
+  { temp: 5.0, color: '#ABD9E9' },
+  { temp: 6.1, color: '#E0F3F8' },
+  { temp: 7.2, color: '#FFFFBF' },
+  { temp: 8.3, color: '#FEE090' },
+  { temp: 9.5, color: '#FDAE61' },
+  { temp: 10.6, color: '#F46D43' },
+  { temp: 11.7, color: '#D73027' },
+  { temp: 12.8, color: '#A50026' },
 ];
 
 var svgData = {
@@ -56,6 +56,7 @@ addEventListener('DOMContentLoaded', function(e) {
       svgData.barWidth = svgAttributes.width / svgData.years.length;
 
       createGraph();
+      showMeasurementScales();
     })
     .catch(function(e) {
       alert('There is no data to show.');
@@ -75,28 +76,14 @@ function getData(url) {
 }
 
 function getColor(baseTemp) {
-  if (baseTemp < 2.8) {
-    return colors[0];
-  } else if (baseTemp <= 3.9) {
-    return colors[1];
-  } else if (baseTemp <= 5.0) {
-    return colors[2];
-  } else if (baseTemp <= 6.1) {
-    return colors[3];
-  } else if (baseTemp <= 7.2) {
-    return colors[4];
-  } else if (baseTemp <= 8.3) {
-    return colors[5];
-  } else if (baseTemp <= 9.5) {
-    return colors[6];
-  } else if (baseTemp <= 10.6) {
-    return colors[7];
-  } else if (baseTemp <= 11.7) {
-    return colors[8];
-  } else if (baseTemp <= 12.8) {
-    return colors[9];
-  } else if (baseTemp > 12.8) {
-    return colors[10];
+  for (var i = 0; i < colors.length; i++) {
+    if (i === colors.length - 1) {
+      return colors[colors.length - 1].color;
+    }
+
+    if (colors[i].temp < baseTemp && colors[i + 1].temp >= baseTemp) {
+      return colors[i].color;
+    }
   }
 }
 
@@ -118,16 +105,16 @@ function createGraph() {
   function scaleX(value) {
     xScale = d3
       .scaleLinear()
-      .domain([svgData.minYear, svgData.maxYear + 1]) // +1 is for adjustment
+      .domain([svgData.minYear, svgData.maxYear])
       .range([svgAttributes.margins.left, svgAttributes.width + svgAttributes.margins.left]);
     return xScale(value);
   }
 
   function scaleY(value) {
     yScale = d3
-      .scaleLinear()
-      .domain([0, 11]) // +1 is for adjustment
-      .range([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
+      .scaleBand()
+      .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+      .rangeRound([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
     return yScale(value);
   }
 
@@ -142,9 +129,7 @@ function createGraph() {
       .attr('id', 'x-axis')
       .style(
         'transform',
-        'translate(0,' +
-          (svgAttributes.margins.top + svgAttributes.height + svgData.barHeight) +
-          'px)',
+        'translate(0,' + (svgAttributes.margins.top + svgAttributes.height) + 'px)',
       )
       .call(xAxis);
 
@@ -157,10 +142,7 @@ function createGraph() {
     svg
       .append('g')
       .attr('id', 'y-axis')
-      .style(
-        'transform',
-        'translate(' + svgAttributes.margins.left + 'px, ' + svgData.barHeight / 2 + 'px)',
-      )
+      .style('transform', 'translate(' + svgAttributes.margins.left + 'px, 0px)')
       .call(yAxis);
   }
 
@@ -178,7 +160,8 @@ function createGraph() {
       .attr('data-temp', d => d.variance)
       .attr('x', d => scaleX(d.year))
       .attr('y', d => scaleY(d.month - 1))
-      .style('fill', d => getColor(svgData.baseTemperature + d.variance));
+      .style('fill', d => getColor(svgData.baseTemperature + d.variance))
+      .exit();
   }
 
   function showTexts() {
@@ -205,18 +188,103 @@ function createGraph() {
       .style('fill', 'white')
       .style('font-size', '16px')
       .style('transform', 'translate(65px, 370px) rotate(-90deg)');
-    
+
     // Show y-axis text
     svg
       .append('text')
       .text('Years')
       .style('fill', 'white')
       .style('font-size', '16px')
-      .style('transform', 'translate(' + ( svgAttributes.margins.left + svgAttributes.width / 2 - 50 )+ 'px, ' + (svgAttributes.margins.top + svgAttributes.height + 80 ) + 'px)');
+      .style(
+        'transform',
+        'translate(' +
+          (svgAttributes.margins.left + svgAttributes.width / 2 - 50) +
+          'px, ' +
+          (svgAttributes.margins.top + svgAttributes.height + 50) +
+          'px)',
+      );
   }
 
   makeChart();
   populateChart();
   showAxes();
   showTexts();
+}
+
+function showMeasurementScales() {
+  var legendOptions = {
+    width: 400,
+    height: 30,
+    legendColors: colors.map(d => d.color),
+    minTemp: d3.min(svgData.temperatureData, d => svgData.baseTemperature + d.variance),
+    maxTemp: d3.max(svgData.temperatureData, d => svgData.baseTemperature + d.variance),
+  };
+
+  console.log('legendOptions', legendOptions);
+
+  var legend = svg
+    .append('g')
+    .attr('id', 'legend')
+    .style(
+      'transform',
+      'translate(' +
+        svgAttributes.margins.left +
+        'px, ' +
+        (svgAttributes.margins.top + svgAttributes.height + svgAttributes.margins.bottom / 2) +
+        'px)',
+    );
+
+  var legendThreshold = d3
+    .scaleThreshold()
+    .domain(
+      (function() {
+        var arr = [];
+        var step =
+          (legendOptions.maxTemp - legendOptions.minTemp) / legendOptions.legendColors.length;
+        for (var i = 1; i < legendOptions.legendColors.length; i++) {
+          arr.push(legendOptions.minTemp + i * step);
+        }
+        console.log('Threshold Domain', arr);
+        return arr;
+      })(),
+    )
+    .range(legendOptions.legendColors);
+
+  var legendX = d3
+    .scaleLinear()
+    .domain([legendOptions.minTemp, legendOptions.maxTemp])
+    .range([0, legendOptions.width]);
+
+  var legendXAxis = d3
+    .axisBottom(legendX)
+    .tickSize(10)
+    .tickValues(legendThreshold.domain())
+    .tickFormat(d3.format('.1f'));
+
+  legend
+    .selectAll('rect')
+    .data(
+      legendThreshold.range().map(function(color) {
+        var d = legendThreshold.invertExtent(color);
+
+        if (d[0] == null) d[0] = legendX.domain()[0];
+        if (d[1] == null) d[1] = legendX.domain()[1];
+
+        return d;
+      }),
+    )
+    .enter()
+    .append('rect')
+    .style('fill', d => legendThreshold(d[0]))
+    .style('stroke', 'white')
+    .attr('x', d => legendX(d[0]))
+    .attr('width', d => legendX(d[1]) - legendX(d[0]))
+    .attr('height', legendOptions.height)
+    .exit();
+
+  legend
+    .append('g')
+    .style('transform', 'translate(0px, ' + legendOptions.height + 'px)')
+    .style('color', 'white')
+    .call(legendXAxis);
 }
