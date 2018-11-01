@@ -25,3 +25,7 @@ body {
   fill: white;
   transform: translateX(-10px);
 }
+
+#legend .tick text {
+  font-size: 14px;
+}
