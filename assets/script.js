@@ -1,6 +1,4 @@
 var svg = null;
-var xScale = null;
-var yScale = null;
 
 var svgAttributes = {
   width: 1000,
@@ -9,24 +7,18 @@ var svgAttributes = {
   margins: {
     top: 120,
     left: 150,
-    right: 30,
+    right: 150,
     bottom: 150,
   },
+  xScale: null,
+  yScale: null,
+  tooltip: null,
+  legendThreshold: null,
+  legendOptions: {
+    width: 400,
+    height: 30,
+  },
 };
-
-var colors = [
-  { temp: 0, color: '#313695' },
-  { temp: 2.8, color: '#4575B4' },
-  { temp: 3.9, color: '#74ADD1' },
-  { temp: 5.0, color: '#ABD9E9' },
-  { temp: 6.1, color: '#E0F3F8' },
-  { temp: 7.2, color: '#FFFFBF' },
-  { temp: 8.3, color: '#FEE090' },
-  { temp: 9.5, color: '#FDAE61' },
-  { temp: 10.6, color: '#F46D43' },
-  { temp: 11.7, color: '#D73027' },
-  { temp: 12.8, color: '#A50026' },
-];
 
 var svgData = {
   url:
@@ -35,6 +27,21 @@ var svgData = {
   temperatureData: [],
   baseTemperature: null,
   years: [],
+  colors: [
+    '#313695',
+    '#4575B4',
+    '#74ADD1',
+    '#ABD9E9',
+    '#E0F3F8',
+    '#FFFFBF',
+    '#FEE090',
+    '#FDAE61',
+    '#F46D43',
+    '#D73027',
+    '#A50026',
+  ],
+  minTemp: null,
+  maxTemp: null,
   minYear: null,
   maxYear: null,
   barWidth: null,
@@ -42,21 +49,27 @@ var svgData = {
 };
 
 addEventListener('DOMContentLoaded', function(e) {
-  getData(svgData.url)
+  fetch(svgData.url)
+    .then(response => response.json())
     .then(data => {
       svgData.response = data;
       svgData.temperatureData = data.monthlyVariance;
       svgData.baseTemperature = data.baseTemperature;
       svgData.minYear = d3.min(svgData.temperatureData, d => d.year);
       svgData.maxYear = d3.max(svgData.temperatureData, d => d.year);
+      svgData.minTemp = d3.min(svgData.temperatureData, d => svgData.baseTemperature + d.variance);
+      svgData.maxTemp = d3.max(svgData.temperatureData, d => svgData.baseTemperature + d.variance);
 
       for (var i = svgData.minYear; i <= svgData.maxYear; i++) {
         svgData.years.push(i);
       }
       svgData.barWidth = svgAttributes.width / svgData.years.length;
 
+      makeChart();
+      scaleThreshold();
       createGraph();
       showMeasurementScales();
+      showTooltip();
     })
     .catch(function(e) {
       alert('There is no data to show.');
@@ -69,58 +82,56 @@ addEventListener('DOMContentLoaded', function(e) {
 
 function log() {
   console.log(svgData);
+  console.log('Threshold Domain', svgAttributes.legendThreshold.domain());
 }
 
-function getData(url) {
-  return fetch(url).then(response => response.json());
+function scaleThreshold() {
+  svgAttributes.legendThreshold = d3
+    .scaleThreshold()
+    .domain(
+      (function() {
+        var arr = [];
+        var step = (svgData.maxTemp - svgData.minTemp) / svgData.colors.length;
+        for (var i = 1; i < svgData.colors.length; i++) {
+          arr.push(svgData.minTemp + i * step);
+        }
+        return arr;
+      })(),
+    )
+    .range(svgData.colors);
 }
 
-function getColor(baseTemp) {
-  for (var i = 0; i < colors.length; i++) {
-    if (i === colors.length - 1) {
-      return colors[colors.length - 1].color;
-    }
-
-    if (colors[i].temp < baseTemp && colors[i + 1].temp >= baseTemp) {
-      return colors[i].color;
-    }
-  }
+function makeChart() {
+  svg = d3
+    .select(svgAttributes.selector)
+    .append('svg')
+    .attr('width', svgAttributes.width + svgAttributes.margins.left + svgAttributes.margins.right)
+    .attr(
+      'height',
+      svgAttributes.height + svgAttributes.margins.top + svgAttributes.margins.bottom,
+    );
 }
 
 function createGraph() {
-  function makeChart() {
-    svg = d3
-      .select(svgAttributes.selector)
-      .append('svg')
-      .attr('width', svgAttributes.width + svgAttributes.margins.left + svgAttributes.margins.right)
-      .attr(
-        'height',
-        svgAttributes.height +
-          svgAttributes.margins.top +
-          svgData.barHeight +
-          svgAttributes.margins.bottom,
-      );
-  }
-
   function scaleX(value) {
-    xScale = d3
+    svgAttributes.xScale = d3
       .scaleLinear()
       .domain([svgData.minYear, svgData.maxYear])
       .range([svgAttributes.margins.left, svgAttributes.width + svgAttributes.margins.left]);
-    return xScale(value);
+    return svgAttributes.xScale(value);
   }
 
   function scaleY(value) {
-    yScale = d3
+    svgAttributes.yScale = d3
       .scaleBand()
       .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
       .rangeRound([svgAttributes.margins.top, svgAttributes.height + svgAttributes.margins.top]);
-    return yScale(value);
+    return svgAttributes.yScale(value);
   }
 
   function showAxes() {
     var xAxis = d3
-      .axisBottom(xScale)
+      .axisBottom(svgAttributes.xScale)
       .ticks(20)
       .tickFormat(d3.format('d'));
 
@@ -133,7 +144,7 @@ function createGraph() {
       )
       .call(xAxis);
 
-    var yAxis = d3.axisLeft(yScale).tickFormat(function(month) {
+    var yAxis = d3.axisLeft(svgAttributes.yScale).tickFormat(function(month) {
       var date = new Date(0);
       date.setUTCMonth(month);
       return d3.timeFormat('%B')(date);
@@ -160,7 +171,28 @@ function createGraph() {
       .attr('data-temp', d => d.variance)
       .attr('x', d => scaleX(d.year))
       .attr('y', d => scaleY(d.month - 1))
-      .style('fill', d => getColor(svgData.baseTemperature + d.variance))
+      .style('fill', d => svgAttributes.legendThreshold(svgData.baseTemperature + d.variance))
+      .on('mouseover', function(d, i) {
+        var html = '';
+
+        html += '<div> <strong>Year: </strong>' + d.year + '</div>';
+        html += '<div> <strong>Month: </strong>' + d.month + '</div>';
+        html +=
+          '<div> <strong>Temperature: </strong>' +
+          Math.round((svgData.baseTemperature + d.variance) * 10) / 10 +
+          '</div>';
+        html += '<div> <strong>Variance: </strong>' + Math.round(d.variance * 10) / 10 + '</div>';
+
+        svgAttributes.tooltip
+          .attr('data-year', d.year)
+          .style('left', d3.event.pageX + 'px')
+          .style('top', d3.event.pageY + 'px')
+          .style('display', 'inline-block')
+          .html(html);
+      })
+      .on('mouseout', function(d, i) {
+        svgAttributes.tooltip.style('display', 'none').html('');
+      })
       .exit();
   }
 
@@ -205,23 +237,12 @@ function createGraph() {
       );
   }
 
-  makeChart();
   populateChart();
   showAxes();
   showTexts();
 }
 
 function showMeasurementScales() {
-  var legendOptions = {
-    width: 400,
-    height: 30,
-    legendColors: colors.map(d => d.color),
-    minTemp: d3.min(svgData.temperatureData, d => svgData.baseTemperature + d.variance),
-    maxTemp: d3.max(svgData.temperatureData, d => svgData.baseTemperature + d.variance),
-  };
-
-  console.log('legendOptions', legendOptions);
-
   var legend = svg
     .append('g')
     .attr('id', 'legend')
@@ -234,38 +255,22 @@ function showMeasurementScales() {
         'px)',
     );
 
-  var legendThreshold = d3
-    .scaleThreshold()
-    .domain(
-      (function() {
-        var arr = [];
-        var step =
-          (legendOptions.maxTemp - legendOptions.minTemp) / legendOptions.legendColors.length;
-        for (var i = 1; i < legendOptions.legendColors.length; i++) {
-          arr.push(legendOptions.minTemp + i * step);
-        }
-        console.log('Threshold Domain', arr);
-        return arr;
-      })(),
-    )
-    .range(legendOptions.legendColors);
-
   var legendX = d3
     .scaleLinear()
-    .domain([legendOptions.minTemp, legendOptions.maxTemp])
-    .range([0, legendOptions.width]);
+    .domain([svgData.minTemp, svgData.maxTemp])
+    .range([0, svgAttributes.legendOptions.width]);
 
   var legendXAxis = d3
     .axisBottom(legendX)
     .tickSize(10)
-    .tickValues(legendThreshold.domain())
+    .tickValues(svgAttributes.legendThreshold.domain())
     .tickFormat(d3.format('.1f'));
 
   legend
     .selectAll('rect')
     .data(
-      legendThreshold.range().map(function(color) {
-        var d = legendThreshold.invertExtent(color);
+      svgAttributes.legendThreshold.range().map(function(color) {
+        var d = svgAttributes.legendThreshold.invertExtent(color);
 
         if (d[0] == null) d[0] = legendX.domain()[0];
         if (d[1] == null) d[1] = legendX.domain()[1];
@@ -275,16 +280,23 @@ function showMeasurementScales() {
     )
     .enter()
     .append('rect')
-    .style('fill', d => legendThreshold(d[0]))
+    .style('fill', d => svgAttributes.legendThreshold(d[0]))
     .style('stroke', 'white')
     .attr('x', d => legendX(d[0]))
     .attr('width', d => legendX(d[1]) - legendX(d[0]))
-    .attr('height', legendOptions.height)
+    .attr('height', svgAttributes.legendOptions.height)
     .exit();
 
   legend
     .append('g')
-    .style('transform', 'translate(0px, ' + legendOptions.height + 'px)')
+    .style('transform', 'translate(0px, ' + svgAttributes.legendOptions.height + 'px)')
     .style('color', 'white')
     .call(legendXAxis);
+}
+
+function showTooltip() {
+  svgAttributes.tooltip = d3
+    .select('#graph')
+    .append('div')
+    .attr('id', 'tooltip');
 }
