@@ -29,3 +29,19 @@ body {
 #legend .tick text {
   font-size: 14px;
 }
+
+#tooltip {
+  background-color: rgba(100, 100, 100, .95);
+  color: white;
+  padding: 10px 25px;
+  display: none;
+  border-radius: 5px;
+  text-align: left;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#tooltip > div {
+  margin-bottom: 3px;
+}
